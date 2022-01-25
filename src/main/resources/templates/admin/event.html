@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="ISO-8859-1">
+	<title>Insert title here</title>
+	<link th:href="@{/webjars/bootstrap/css/bootstrap.min.css}" rel="stylesheet"></link>
+</head>
+<body>
+	<h1>Please enter Event details</h1>
+	<div>
+		<form th:action="@{/admin/events/event}" method="post">
+			<span style="color:red" th:if="${validationResults?.hasErrors()}">Please fix the validation errors</span>
+			<input class="d-none" type="text" th:value="${event?.id}" name="id" id="eventId"/>
+			<table>
+				<tr>
+					<td valign="top"><label>Name:</label></td>
+					<td>
+						<input type="text" th:value="${event?.name}" name="name"/>
+						<div style="color:red">
+							<ul th:if="${validationResults?.hasFieldErrors('name')}">
+								<li th:each="err : ${validationResults?.getFieldErrors('name')}" 
+									th:text="${err.field + ' ' + err.defaultMessage}"></li>
+							</ul>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td valign="top"><label>Access Code:</label></td>
+					<td>
+						<input type="text" th:value="${event?.accessCode}" name="accessCode"/>
+						<div style="color:red">
+							<ul th:if="${validationResults?.hasFieldErrors('accessCode')}">
+								<li th:each="err : ${validationResults?.getFieldErrors('accessCode')}" 
+									th:text="${err.field + ' ' + err.defaultMessage}"></li>
+							</ul>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td valign="top"><label>Secret Code:</label></td>
+					<td>
+						<input type="password" name="secretCode"/>
+						<div style="color:red">
+							<ul th:if="${validationResults?.hasFieldErrors('secretCode')}">
+								<li th:each="err : ${validationResults?.getFieldErrors('secretCode')}" 
+									th:text="${err.field + ' ' + err.defaultMessage}"></li>
+							</ul>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td valign="top"><label>Quiz:</label></td>
+					<td>
+						<select name="quizId">
+							<option th:each="quiz : ${quizes}" th:value="${quiz.id}" th:text="${quiz.name}" 
+								th:selected="${quiz.id == event?.quizId}"/>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="text-align:right">
+						<input class="btn btn-primary" type="submit" value="Save"/>
+					</td>
+				</tr>
+			</table>
+		</form>
+	</div>
+</body>
+</html>

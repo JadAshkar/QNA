@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="ISO-8859-1">
+	<title>Insert title here</title>
+	<link th:href="@{/webjars/bootstrap/css/bootstrap.min.css}" rel="stylesheet"></link>
+</head>
+<body>
+	<h1>Welcome to QNA Admin</h1>
+	<div>
+		<a class="ml-5" th:href="@{/admin/quizes}">Quizes</a>
+		<a class="ml-5" th:href="@{/admin/events}">Events</a>
+	</div>
+</body>
+</html>

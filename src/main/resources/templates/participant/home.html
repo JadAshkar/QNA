@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="ISO-8859-1">
+	<title>Insert title here</title>
+	<link th:href="@{/webjars/bootstrap/css/bootstrap.min.css}" rel="stylesheet"></link>
+</head>
+<body>
+	<div class="container">
+		<h3>
+			<label id="lblWaiting">Waiting for the next question...</label>
+		</h3>
+		<div id="divQuestion">
+			<div>
+				<label id="lblQuestion"></label>
+				<ol id="olAnswerOptions">
+				
+				</ol>
+			</div>
+			<button class="btn btn-primary" id="btnSubmit" disabled onClick="submitAnswer()">Submit Answer</button>
+			<input type="hidden" id="accessCode" name="accessCode" th:value="${accessCode}"/>
+			<input type="hidden" id="participantName" name="participantName" th:value="${participantName}"/>
+		</div>
+	</div>
+</body>
+<script type="text/javascript" th:src="@{/webjars/jquery/jquery.min.js}"></script>
+<script type="text/javascript">
+	let accessCode = $('#accessCode').val();
+	let participantName = $('#participantName').val();
+	let questionEventId = 0;
+	let answerOptionId = 0;
+	let quizInterval;
+	
+	$(document).ready(function(){
+		$('#divQuestion').hide();
+		quizInterval = setInterval(getNextQuestion, 5000);
+		getNextQuestion();
+	})
+	
+	function getNextQuestion() {
+		$.ajax({
+			url: `api/v1/participant/nextQuestion?accessCode=${accessCode}&participantName=${participantName}`,
+			method: "GET"	
+		}).done(function(qe){
+			console.log(qe);
+			if(questionEventId == qe.questionEventId){
+				return;
+			}
+			$('#lblWaiting').hide();
+			
+			toggleBtnSubmit(false);
+			$('#lblQuestion').text(qe.text);
+			questionEventId = qe.id;
+			
+			$('#olAnswerOptions').empty();
+			$.each(qe.answerOptions, function(i, ao){
+				$('#olAnswerOptions').append(`<li><div class="radio"><label><input type="radio" 
+						name="answer" value="${ao.id}"/>${ao.text}</label></div></li>`);
+			});
+			$('#divQuestion').show();
+			
+			$('input[name="answer"]').click(function(){
+				answerOptionId = $(this).val();
+				toggleBtnSubmit(true);
+			});
+			
+		}).fail(function(x, t, e){
+			console.log(x);
+			$('#lblWaiting').show();
+			$('#divQuestion').hide();
+		});
+	}
+	
+	function submitAnswer() {
+		toggleBtnSubmit(false);
+		$.ajax({
+			url: "api/v1/participant/answer",
+			method: "POST",
+			data: {answerOptionId: answerOptionId, questionEventId: questionEventId, participantName: participantName}
+		}).done(function(e){
+			$('#lblWaiting').show();
+			$('#divQuestion').hide();
+			questionEventId = 0;
+		});
+	}
+	
+	function toggleBtnSubmit(enable) {
+		if(!enable){
+			$('#btnSubmit').attr('disabled', true);
+			$('#btnSubmit').addClass('disabled');
+			$('#btnSubmit').removeClass('active');
+		} else {
+			$('#btnSubmit').attr('disabled', false);
+			$('#btnSubmit').removeClass('disabled');
+			$('#btnSubmit').addClass('active');
+		}
+	}
+	
+
+</script>
+</html>

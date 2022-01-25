@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="ISO-8859-1">
+	<title>Insert title here</title>
+	<link th:href="@{/webjars/bootstrap/css/bootstrap.min.css}" rel="stylesheet"></link>
+	<link th:href="@{/webjars/chartjs/Chart.min.css}" rel="stylesheet"></link>
+</head>
+<body>
+	<input type="hidden" id="accessCode" name="accessCode" th:value="${accessCode}"/>
+	<div id="controlPanel" style="display:inline-block">
+		<div class="input-group">
+			<button class="btn btn-primary" id="btnLoadPrevQuestion" onclick="loadPrevQuestion()">Prev</button>
+			<button class="btn btn-primary" id="btnLoadNextQuestion" onclick="loadNextQuestion()">Next</button>
+			<button class="btn btn-primary" id="btnStart" onclick="postQuestion()">Start</button>
+			<button class="btn btn-danger" id="btnStop" disabled onclick="stop()">Stop</button>
+			<input class="form-control" id="inpCounter" type="text" value="60"/>
+			<label id="lblStatus">Not Processed</label>
+		</div>
+	</div>
+	<div id="divQuestion">
+		<div>
+			<h1>
+				<label id="lblQuestion"></label>
+			</h1>
+			<ol id="olAnswerChoices">
+			
+			</ol>
+		</div>
+	</div>
+	<div id="divResult">
+		<div style="float:left;">
+			<canvas id="cnvBarChart" width="500" height="300"></canvas>
+		</div>
+		<div style="float:left">
+			<ul id="ulAnswerNames">
+			
+			</ul>
+		</div>
+	</div>
+</body>
+<script type="text/javascript" th:src="@{/webjars/jquery/jquery.min.js}"></script>
+<script type="text/javascript" th:src="@{/webjars/chartjs/Chart.min.js}"></script>
+<script type="text/javascript">
+	let accessCode = $('#accessCode').val();
+	let questions;
+	let qIndex = -1;
+	let timeoutId;
+	let chart;
+	
+	$(document).ready(function(){
+		getQuestions();
+		loadBarChart();
+	});
+	
+	function getQuestions(){
+		$.ajax({
+			url: "api/v1/presenter/questions?accessCode="+accessCode,
+			method: "GET"
+		}).done(function(rs){
+			console.log(rs);
+			questions = rs.questions;
+			loadNextQuestion();
+		}).fail(function(x, t, e){
+			console.log(x);
+		});
+	}
+	
+	function loadBarChart() {
+		var cnv = $('#cnvBarChart');
+		chart = new Chart(cnv, {
+			type: 'bar',
+			data: {
+				labels: ['A1', 'A2', 'A3', 'A4'],
+				datasets: [{
+					label: '# of Answers',
+					ids: [0, 0, 0, 0],
+					data: [0, 0, 0, 0],
+					backgroundColor: [
+						'rgba(0, 0, 255, 0.5)',
+						'rgba(0, 0, 255, 0.5)',
+						'rgba(0, 0, 255, 0.5)',
+						'rgba(0, 0, 255, 0.5)'
+					],
+					borderWidth: 1
+				}]
+			},
+			options: {
+				scales: {
+					yAxes: [{
+						ticks: {
+							beginAtZero: true
+						}
+					}]
+				},
+				onClick: function(c, i) {
+					if(i.length > 0){
+						let aIndex = i[0]._index;
+						//console.log(aIndex);
+						let answerOptionId = this.data.datasets[0].ids[aIndex];
+						console.log(answerOptionId);
+						getParticipantNames(answerOptionId);
+					}
+				}
+			}
+		});
+	}
+	
+	function getParticipantNames(answerOptionId) {
+		let question = questions[qIndex];
+		$.ajax({
+			url: `api/v1/presenter/participantNames?accessCode=${accessCode}&questionId=${question.id}&answerOptionId=${answerOptionId}`,
+			method: "GET"
+		}).done(function(names){
+			console.log(names);
+			$('#ulAnswerNames').empty();
+			$.each(names, function(i, name){
+				$('#ulAnswerNames').append(`<li>${name}</li>`);
+			});
+		}).fail(function(x, e , t){
+			console.log(x);
+		});
+	}
+	
+	function loadNextQuestion() {
+		qIndex++;
+		if(qIndex >= questions.length) {
+			qIndex = questions.length - 1;
+			return;
+		}
+		
+		displayQuestion();
+		
+		getQuestionAnswers();
+		isQuestionEventProcessed(); 
+	}
+	
+	function loadPrevQuestion() {
+		qIndex--;
+		if(qIndex < 0) {
+			qIndex = 0;
+			return;
+		}
+		
+		displayQuestion();
+		
+		getQuestionAnswers();
+		isQuestionEventProcessed();
+	}
+	
+	function getQuestionAnswers() {
+		let question = questions[qIndex];
+		$.ajax({
+			url: `api/v1/presenter/questionEventAnswers?accessCode=${accessCode}&questionId=${question.id}`,
+			method: "GET"
+		}).done(function(answerGroups){
+			console.log(answerGroups);
+			updateBarChart(answerGroups);
+		}).fail(function(x, e, t){
+			console.log(x);
+		});
+	}
+	
+	function updateBarChart(answerGroups){
+		let dataset = chart.data.datasets[0];
+		dataset.data = [0, 0, 0, 0];
+		dataset.ids = [0, 0, 0, 0];
+		if(answerGroups.length > 0){
+			for(let i = 0; i < answerGroups.length; i++){
+				dataset.data[answerGroups[i].answerOptionOrder - 1] = answerGroups[i].totalAnswers;
+				dataset.ids[answerGroups[i].answerOptionOrder - 1] = answerGroups[i].answerOptionId;
+			}
+		}
+		chart.update();
+	}
+	
+	function displayQuestion() {
+		let question = questions[qIndex];
+		$('#lblQuestion').text(question.text);
+		$('#olAnswerChoices').empty();
+		$('#ulAnswerNames').empty();
+		
+		$.each(question.answerOptions, function(i, op){
+			$('#olAnswerChoices').append(`<li>${op.text}</li>`);
+		});
+	}
+	
+	function isQuestionEventProcessed() {
+		let question = questions[qIndex];
+		$.ajax({
+			url: "api/v1/presenter/question?accessCode="+accessCode+"&questionId="+question.id,
+			method: "GET"
+		}).done(function(processed){
+			if(processed){
+				$('#lblStatus').text("Processed");
+				$('#btnStart').attr('disabled', 'disabled');
+				$('#btnStop').attr('disabled', 'disabled');
+			} else {
+				$('#lblStatus').text("Not Processed");
+				$('#btnStart').removeAttr('disabled')
+				$('#btnStop').attr('disabled', 'disabled');
+			}
+		}).fail(function(x, t, e){
+			console.log(x);
+			$('#lblStatus').text("Not Processed");
+			$('#btnStart').removeAttr('disabled')
+			$('#btnStop').attr('disabled', 'disabled');
+		});
+	}
+	
+	function postQuestion() {
+		let question = questions[qIndex];
+		$.ajax({
+			url: "api/v1/presenter/question",
+			method: "POST",
+			data: {accessCode: accessCode, questionId: question.id}
+		}).done(function(rs){
+			console.log(rs);
+			question.questionEventId = rs;
+			start();
+		}).fail(function(x, t, e){
+			console.log(x);
+		});
+	}
+	
+	function start() {
+		let question = questions[qIndex];
+		getQuestionAnswers();
+		$('#btnStart').attr('disabled', 'disabled');
+		$('#btnStop').removeAttr('disabled');
+		let counterStr = $('#inpCounter').val();
+		let counter = parseInt(counterStr);
+		counter--;
+		$('#inpCounter').val(counter);
+		if(counter > 0) {
+			timeoutId = setTimeout(start, 1000);
+		} else {
+			stop();
+		}
+	}
+	
+	function stop() {
+		let question = questions[qIndex];
+		$.ajax({
+			url: "api/v1/presenter/question/"+question.questionEventId,
+			method: "PUT"
+		}).done(function(rs){
+			clearTimeout(timeoutId);
+			$('#btnStop').attr('disabled', 'disabled');
+			$('#lblStatus').text('Processed');
+			$('#inpCounter').val("60");
+		})
+	}
+
+</script>
+
+</html>

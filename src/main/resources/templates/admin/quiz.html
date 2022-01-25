@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="ISO-8859-1">
+	<title>Insert title here</title>
+	<link th:href="@{/webjars/bootstrap/css/bootstrap.min.css}" rel="stylesheet"></link>
+</head>
+<body>
+	<h1>Please enter Quiz details</h1>
+	<div>
+		<form th:action="@{/admin/quizes/quiz}" method="post">
+			<span style="color:red" th:if="${validationResults?.hasErrors()}">Please fix the validation errors</span>
+			<input class="d-none" type="text" th:value="${quiz?.id}" name="id" id="quizId"/>
+			<table>
+				<tr>
+					<td valign="top"><label>Name:</label></td>
+					<td>
+						<input type="text" th:value="${quiz?.name}" name="name"/>
+						<div style="color:red">
+							<ul th:if="${validationResults?.hasFieldErrors('name')}">
+								<li th:each="err : ${validationResults?.getFieldErrors('name')}" 
+									th:text="${err.field + ' ' + err.defaultMessage}"></li>
+							</ul>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="text-align:right">
+						<input class="btn btn-primary" type="submit" value="Save"/>
+					</td>
+				</tr>
+			</table>
+		</form>
+		<div id="divQuestions">
+			<table class="table table-bordered">
+				<tr>
+					<td colspan="2">
+						<div>
+							<span>Questions: </span> <button class="ml-2 btn btn-primary" id="btnAddQuestion">Add Question</button>
+							<table class="table" id="tblQuestions">
+								<tr th:each="question : ${quiz?.questions}">
+									<td>
+										<div>
+											<table class="table" style="border: 1px solid black">
+												<tr>
+													<td style="text-align:center;font-weight:bold" colspan="2" 
+														th:text="${question.text}">
+													</td>
+												</tr>
+												<tr th:each="option, row: ${question.answerOptions}" th:if="${row.index} % 2==0">
+													<td th:style="${question.answerOptions[row.index].correct}?'color:white;background:green'"
+														th:text="${question.answerOptions[row.index].text}"></td>
+													<td th:style="${question.answerOptions[row.index+1].correct}?'color:white;background:green'"
+														th:text="${question.answerOptions[row.index+1].text}"></td>
+												</tr>
+											</table>
+										</div>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<div id="divAddQuestion">
+			<div class="container">
+				<div class="row">
+					<div class="col">
+						<label for="text">Question Text: </label>
+						<input class="form-control" id="questionText" type="text"/>
+					</div>
+				</div>
+				<div class="row mt-2">
+					<div class="input-group col">
+					  <div class="input-group-prepend">
+					    <div class="input-group-text">
+					    <input type="radio" name="answers" value="0">
+					    </div>
+					  </div>
+					  <input type="text" class="form-control" id="answer1">
+					</div>
+					<div class="input-group col">
+					  <div class="input-group-prepend">
+					    <div class="input-group-text">
+					    <input type="radio" name="answers" value="1">
+					    </div>
+					  </div>
+					  <input type="text" class="form-control" id="answer2">
+					</div>
+				</div>
+				<div class="row mt-2">
+					<div class="input-group col">
+					  <div class="input-group-prepend">
+					    <div class="input-group-text">
+					    <input type="radio" name="answers" value="2">
+					    </div>
+					  </div>
+					  <input type="text" class="form-control" id="answer3">
+					</div>
+					<div class="input-group col">
+					  <div class="input-group-prepend">
+					    <div class="input-group-text">
+					    <input type="radio" name="answers" value="3">
+					    </div>
+					  </div>
+					  <input type="text" class="form-control" id="answer4">
+					</div>
+				</div>
+				<div class="row mt-2">
+					<div class="col">
+						<button class="btn btn-primary float-right" id="btnSaveQuestion">Add</button>
+						<button class="mr-2 btn btn-warning float-right" id="btnCancelQuestion">Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+<script type="text/javascript" th:src="@{/webjars/jquery/jquery.min.js}"></script>
+<script type="text/javascript">
+	
+	$(document).ready(function(){
+		$('#divAddQuestion').hide();
+		$('#btnAddQuestion').click(function(){
+			$('#divQuestions').hide();
+			$('#divAddQuestion').show();
+		});
+		
+		$('#btnCancelQuestion').click(function(){
+			$('#divQuestions').show();
+			$('#divAddQuestion').hide();
+		});
+		
+		$('#btnSaveQuestion').click(function(){
+			addQuestion();
+		});
+	});
+	
+	function addQuestion() {
+		let quizId = $('#quizId').val();
+		let questionText = $('#questionText').val();
+		let answer1 = $('#answer1').val();
+		let answer2 = $('#answer2').val();
+		let answer3 = $('#answer3').val();
+		let answer4 = $('#answer4').val();
+		let answers = [{text:answer1, correct:0, optionOrder:1}, {text:answer2, correct:0, optionOrder:2},
+						{text: answer3, correct:0, optionOrder:3}, {text: answer4, correct:0, optionOrder:4}];
+		let correctIndex = parseInt($("input[type='radio'][name='answers']:checked").val());
+		answers[correctIndex].correct = 1;
+		let payload = {text: questionText, quizId: quizId, answerOptions: answers};
+		console.log(payload);
+		$.ajax({
+			contentType: 'application/json',
+			url: "api/v1/admin/quizes/quiz/question",
+			method: "POST",
+			data: JSON.stringify(payload)
+		}).done(function(){
+			location.reload();
+		});
+	}
+	
+	
+</script>
+</html>
+
+
+
+
+
